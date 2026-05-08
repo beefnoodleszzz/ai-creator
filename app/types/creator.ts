@@ -151,6 +151,21 @@ export const industries: Industry[] = [
       { id: 'product', name: '母婴好物', description: '好物推荐', topic: '这些母婴好物让我带娃轻松一半' },
     ]
   },
+  {
+    id: 'pet',
+    name: '宠物赛道',
+    icon: '🐾',
+    scenes: [
+      { id: 'cat-daily', name: '猫咪日常', description: '猫咪陪伴/治愈瞬间', topic: '打工人回家后，被我家猫咪这一套迎接流程治愈了' },
+      { id: 'dog-daily', name: '狗狗日常', description: '遛狗/互动/陪伴记录', topic: '每天遛狗30分钟后，我和狗都变得更稳定了' },
+      { id: 'cat-care', name: '猫咪养护', description: '喂养/梳毛/清洁护理', topic: '新手养猫第一个月最容易踩的5个坑，我全踩过' },
+      { id: 'dog-care', name: '狗狗养护', description: '洗护/喂养/作息管理', topic: '狗狗泪痕和掉毛反复？我调整这3件事后明显改善' },
+      { id: 'behavior', name: '行为纠正', description: '乱叫/拆家/抓咬等问题', topic: '狗狗总是乱叫？这套低刺激纠正法比吼它更有效' },
+      { id: 'training', name: '技能训练', description: '定点/召回/基础服从', topic: '14天练出高质量召回，关键是这三个训练节奏' },
+      { id: 'health', name: '健康观察', description: '体重/便便/精神状态记录', topic: '我用这个健康观察清单，提前发现了猫咪肠胃问题' },
+      { id: 'products', name: '宠物用品测评', description: '主粮/零食/玩具/清洁', topic: '实测10款猫砂后留下的3款：除臭、结团、性价比都在线' },
+    ]
+  },
 ]
 
 export const tones: Array<{ value: CreatorTone, label: string, desc: string, emoji: string }> = [

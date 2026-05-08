@@ -614,7 +614,6 @@ watch(() => props.status, (next) => {
       <div class="flex gap-[12px] animate-[fadeInUp_0.4s_ease-out_0.1s_both]">
         <DrawerRoot
           v-model:open="isDrawerOpen"
-          :handle-only="true"
           :close-threshold="0.2"
           :scroll-lock-timeout="120"
         >
@@ -672,10 +671,12 @@ watch(() => props.status, (next) => {
                   placeholder="输入你的优化要求..."
                   class="w-full flex-1 resize-none rounded-[16px] bg-zinc-50 p-[14px] text-[14px] outline-none placeholder:text-zinc-400 focus:bg-zinc-100 focus:ring-2 focus:ring-zinc-950/5 transition-all duration-200 min-h-[100px]"
                 ></textarea>
-                
+              </div>
+
+              <div class="border-t border-zinc-100 bg-white p-[16px]">
                 <UiButton
                   size="lg"
-                  class="mt-[16px] w-full"
+                  class="w-full self-stretch"
                   :disabled="!customPrompt.trim()"
                   @click="submitOptimization(); triggerHaptic()"
                 >

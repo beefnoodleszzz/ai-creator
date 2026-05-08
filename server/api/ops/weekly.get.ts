@@ -1,6 +1,5 @@
-import { readFile } from 'node:fs/promises'
-import { resolve } from 'node:path'
 import { readJsonFile } from '../../utils/jsonStore'
+import { getAnalyticsEvents } from '../../utils/analyticsStore'
 import type { CloudHistoryItem } from '../../utils/historyStore'
 
 type AnalyticsRow = {
@@ -36,14 +35,8 @@ export default defineEventHandler(async (event) => {
   const history = await readJsonFile<CloudHistoryItem[]>('history.json', [])
   const weekHistory = history.filter(item => daySet.has(toDayKey(item.createdAt)))
 
-  const analyticsFile = resolve(process.cwd(), '.data/analytics.ndjson')
-  let analytics: AnalyticsRow[] = []
-  try {
-    const raw = await readFile(analyticsFile, 'utf-8')
-    analytics = raw.split('\n').filter(Boolean).map(line => JSON.parse(line) as AnalyticsRow)
-  } catch {
-    analytics = []
-  }
+  const analyticsRaw = await getAnalyticsEvents()
+  const analytics: AnalyticsRow[] = analyticsRaw as AnalyticsRow[]
   const weekAnalytics = analytics.filter(item => daySet.has(toDayKey(item.serverAt || new Date().toISOString())))
 
   const starts = weekAnalytics.filter(item => item.event === 'generate_start').length

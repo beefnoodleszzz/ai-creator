@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { cva, type VariantProps } from 'class-variance-authority'
+import { useAttrs } from 'vue'
 import { cn } from '~/lib/utils'
+
+defineOptions({
+  inheritAttrs: false,
+})
 
 const buttonVariants = cva(
   'inline-flex items-center justify-center gap-[6px] rounded-[10px] text-[14px] font-medium transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98]',
@@ -32,13 +37,16 @@ const props = defineProps<{
   type?: 'button' | 'submit' | 'reset'
   disabled?: boolean
 }>()
+
+const attrs = useAttrs()
 </script>
 
 <template>
   <button
+    v-bind="attrs"
     :type="props.type || 'button'"
     :disabled="disabled"
-    :class="cn(buttonVariants({ variant: props.variant, size: props.size }))"
+    :class="cn(buttonVariants({ variant: props.variant, size: props.size }), attrs.class)"
   >
     <slot />
   </button>

@@ -1,5 +1,4 @@
-import { readFile } from 'node:fs/promises'
-import { resolve } from 'node:path'
+import { getAnalyticsEvents } from '../../utils/analyticsStore'
 
 type EventRow = {
   event: string
@@ -12,18 +11,8 @@ function toDayKey(v: string) {
 }
 
 export default defineEventHandler(async () => {
-  const file = resolve(process.cwd(), '.data/analytics.ndjson')
-  let rows: EventRow[] = []
-
-  try {
-    const raw = await readFile(file, 'utf-8')
-    rows = raw
-      .split('\n')
-      .filter(Boolean)
-      .map(line => JSON.parse(line) as EventRow)
-  } catch {
-    return { days: [] }
-  }
+  const rawEvents = await getAnalyticsEvents()
+  const rows: EventRow[] = rawEvents as EventRow[]
 
   const map = new Map<string, { sessions: Set<string>, step_change: number, generate_start: number, generate_success: number, generate_error: number }>()
 

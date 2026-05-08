@@ -1,6 +1,5 @@
-import { readFile } from 'node:fs/promises'
-import { resolve } from 'node:path'
 import { readJsonFile } from '../../utils/jsonStore'
+import { getAnalyticsEvents } from '../../utils/analyticsStore'
 import type { CloudHistoryItem } from '../../utils/historyStore'
 
 type AnalyticsRow = {
@@ -37,14 +36,8 @@ export default defineEventHandler(async (event) => {
   }
 
   if (type === 'funnel') {
-    const analyticsFile = resolve(process.cwd(), '.data/analytics.ndjson')
-    let analytics: AnalyticsRow[] = []
-    try {
-      const raw = await readFile(analyticsFile, 'utf-8')
-      analytics = raw.split('\n').filter(Boolean).map(line => JSON.parse(line) as AnalyticsRow)
-    } catch {
-      analytics = []
-    }
+    const analyticsRaw = await getAnalyticsEvents()
+    let analytics: AnalyticsRow[] = analyticsRaw as AnalyticsRow[]
 
     if (dateFrom || dateTo) {
       analytics = analytics.filter(item => inDateRange(item.serverAt || new Date().toISOString(), dateFrom || undefined, dateTo || undefined))
@@ -80,14 +73,8 @@ export default defineEventHandler(async (event) => {
   }
 
   if (type === 'error-distribution') {
-    const analyticsFile = resolve(process.cwd(), '.data/analytics.ndjson')
-    let analytics: AnalyticsRow[] = []
-    try {
-      const raw = await readFile(analyticsFile, 'utf-8')
-      analytics = raw.split('\n').filter(Boolean).map(line => JSON.parse(line) as AnalyticsRow)
-    } catch {
-      analytics = []
-    }
+    const analyticsRaw = await getAnalyticsEvents()
+    let analytics: AnalyticsRow[] = analyticsRaw as AnalyticsRow[]
 
     if (dateFrom || dateTo) {
       analytics = analytics.filter(item => inDateRange(item.serverAt || new Date().toISOString(), dateFrom || undefined, dateTo || undefined))
