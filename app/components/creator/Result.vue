@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, toRef } from 'vue'
 import {
+  DrawerHandle,
   DrawerContent,
   DrawerDescription,
   DrawerOverlay,
@@ -14,6 +15,7 @@ import { cn } from '~/lib/utils'
 import { Copy, PencilLine, RefreshCcw, Sparkles, Tag, MessageSquare, Image, FileText } from 'lucide-vue-next'
 import UiButton from '~/components/ui/button/index.vue'
 import UiBadge from '~/components/ui/badge/index.vue'
+import UiCheckbox from '~/components/ui/checkbox/index.vue'
 
 const props = defineProps<{
   platform: CreatorPlatform
@@ -610,7 +612,12 @@ watch(() => props.status, (next) => {
       </div>
 
       <div class="flex gap-[12px] animate-[fadeInUp_0.4s_ease-out_0.1s_both]">
-        <DrawerRoot v-model:open="isDrawerOpen">
+        <DrawerRoot
+          v-model:open="isDrawerOpen"
+          :handle-only="true"
+          :close-threshold="0.2"
+          :scroll-lock-timeout="120"
+        >
           <DrawerTrigger as-child>
             <UiButton variant="outline" size="lg" class="flex-1">
               <PencilLine class="mr-[8px] size-[16px]" />
@@ -620,39 +627,41 @@ watch(() => props.status, (next) => {
           <DrawerPortal>
             <DrawerOverlay class="fixed inset-0 bg-black/40 z-50 backdrop-blur-sm" />
             <DrawerContent class="bg-white flex flex-col rounded-t-[24px] h-[75vh] mt-24 fixed bottom-0 left-0 right-0 max-w-[600px] mx-auto z-50 outline-none">
-              <div class="p-[20px] bg-white rounded-t-[24px] flex-1 flex flex-col overflow-y-auto">
-                <div class="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-zinc-200 mb-[20px]" />
+              <div class="px-[20px] pt-[12px] pb-[14px] bg-white rounded-t-[24px] border-b border-zinc-100">
+                <DrawerHandle class="mx-auto mb-[14px] h-1.5 w-12 shrink-0 rounded-full bg-zinc-200" />
                 <DrawerTitle class="font-semibold text-zinc-950 mb-[4px] text-[18px] tracking-tight">
                   深度优化
                 </DrawerTitle>
-                <DrawerDescription class="text-zinc-500 mb-[16px] text-[14px] font-light">
+                <DrawerDescription class="text-zinc-500 text-[14px] font-light">
                   选择快捷改写方向，或输入你的具体要求
                 </DrawerDescription>
-                
+              </div>
+
+              <div class="p-[20px] bg-white flex-1 flex flex-col overflow-y-auto">
                 <!-- 快捷改写预设 -->
                 <div class="grid grid-cols-2 gap-[8px] mb-[16px]">
-                  <button
+                  <UiButton
                     v-for="preset in rewritePresets"
                     :key="preset.id"
-                    type="button"
-                    class="flex items-center gap-[8px] rounded-[12px] border border-zinc-100 p-[10px] text-left text-[13px] text-zinc-700 hover:bg-zinc-50 hover:border-zinc-200 transition-all duration-200"
+                    variant="outline"
+                    class="h-auto justify-start gap-[8px] rounded-[12px] px-[10px] py-[10px] text-left text-[13px] font-normal"
                     @click="applyPreset(preset)"
                   >
                     <span class="text-[16px]">{{ preset.icon }}</span>
                     <span>{{ preset.label }}</span>
-                  </button>
+                  </UiButton>
                 </div>
 
                 <div class="mb-[12px]">
                   <p class="mb-[6px] text-[12px] font-medium text-zinc-500">改写范围</p>
                   <div class="grid grid-cols-4 gap-[6px]">
-                    <button type="button" class="rounded-[10px] border px-[8px] py-[6px] text-[12px]" :class="rewriteScope === 'full' ? 'border-zinc-900 bg-zinc-900 text-white' : 'border-zinc-200 bg-white text-zinc-600'" @click="rewriteScope = 'full'">全文</button>
-                    <button type="button" class="rounded-[10px] border px-[8px] py-[6px] text-[12px]" :class="rewriteScope === 'intro' ? 'border-zinc-900 bg-zinc-900 text-white' : 'border-zinc-200 bg-white text-zinc-600'" @click="rewriteScope = 'intro'">开头</button>
-                    <button type="button" class="rounded-[10px] border px-[8px] py-[6px] text-[12px]" :class="rewriteScope === 'middle' ? 'border-zinc-900 bg-zinc-900 text-white' : 'border-zinc-200 bg-white text-zinc-600'" @click="rewriteScope = 'middle'">中段</button>
-                    <button type="button" class="rounded-[10px] border px-[8px] py-[6px] text-[12px]" :class="rewriteScope === 'ending' ? 'border-zinc-900 bg-zinc-900 text-white' : 'border-zinc-200 bg-white text-zinc-600'" @click="rewriteScope = 'ending'">结尾</button>
+                    <UiButton variant="outline" size="sm" class="h-[32px] rounded-[10px] px-[8px] text-[12px]" :class="rewriteScope === 'full' ? 'border-zinc-900 bg-zinc-900 text-white hover:bg-zinc-900 hover:text-white' : ''" @click="rewriteScope = 'full'">全文</UiButton>
+                    <UiButton variant="outline" size="sm" class="h-[32px] rounded-[10px] px-[8px] text-[12px]" :class="rewriteScope === 'intro' ? 'border-zinc-900 bg-zinc-900 text-white hover:bg-zinc-900 hover:text-white' : ''" @click="rewriteScope = 'intro'">开头</UiButton>
+                    <UiButton variant="outline" size="sm" class="h-[32px] rounded-[10px] px-[8px] text-[12px]" :class="rewriteScope === 'middle' ? 'border-zinc-900 bg-zinc-900 text-white hover:bg-zinc-900 hover:text-white' : ''" @click="rewriteScope = 'middle'">中段</UiButton>
+                    <UiButton variant="outline" size="sm" class="h-[32px] rounded-[10px] px-[8px] text-[12px]" :class="rewriteScope === 'ending' ? 'border-zinc-900 bg-zinc-900 text-white hover:bg-zinc-900 hover:text-white' : ''" @click="rewriteScope = 'ending'">结尾</UiButton>
                   </div>
-                  <label class="mt-[8px] inline-flex items-center gap-[6px] text-[12px] text-zinc-600">
-                    <input v-model="preserveParagraphs" type="checkbox" class="size-[14px]" />
+                  <label class="mt-[10px] inline-flex cursor-pointer items-center gap-[8px] rounded-[10px] px-[2px] py-[2px] text-[12px] text-zinc-600">
+                    <UiCheckbox v-model="preserveParagraphs" class="cursor-pointer" />
                     保留未改写段落
                   </label>
                 </div>

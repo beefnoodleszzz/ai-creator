@@ -17,7 +17,7 @@
     "@internationalized/date": "^3.12.1",
     "@nuxtjs/tailwindcss": "^6.14.0",
     "@types/markdown-it": "^14.1.2",
-    "@vercel/kv": "^3.0.0",
+    "@upstash/redis": "^1.38.0",
     "@vite-pwa/nuxt": "^1.1.1",
     "@vueuse/motion": "^3.0.3",
     "ai": "^6.0.175",

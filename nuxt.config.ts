@@ -55,14 +55,6 @@ export default defineNuxtConfig({
     },
   },
 
-  nitro: {
-    storage: {
-      data: {
-        driver: process.env.KV_REST_API_URL ? 'vercelKV' : 'memory',
-      },
-    },
-  },
-
   pwa: {
     registerType: 'autoUpdate',
     manifest: {
