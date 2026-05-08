@@ -3,6 +3,7 @@ import { Activity, ChevronLeft, ChevronRight, Download, RefreshCw, TrendingUp, A
 import UiButton from '~/components/ui/button/index.vue'
 import { Select as UiSelect, SelectItem as UiSelectItem } from '~/components/ui/select'
 import UiInput from '~/components/ui/input/index.vue'
+import UiDatePicker from '~/components/ui/date-picker/index.vue'
 import UiCard from '~/components/ui/card/index.vue'
 import { Sparkline, MiniBar, MiniRing } from '~/components/ui/chart'
 
@@ -79,6 +80,9 @@ const key = computed(() => typeof route.query.key === 'string' ? route.query.key
 
 const loading = ref(false)
 const errorMessage = ref('')
+const lastOverviewAt = ref(0)
+const lastWeeklyAt = ref(0)
+const FETCH_TTL_MS = 15_000
 
 const platform = ref<'all' | 'xiaohongshu' | 'douyin'>('all')
 const tone = ref<'all' | 'viral' | 'professional' | 'chatty'>('all')
@@ -205,12 +209,16 @@ watch(overviewError, value => {
   errorMessage.value = (value as any)?.statusCode === 403 ? '无访问权限' : '加载失败'
 })
 
-async function loadOverview() {
+async function loadOverview(force = false) {
+  if (!force && Date.now() - lastOverviewAt.value < FETCH_TTL_MS) return
   await executeOverview({ dedupe: 'cancel' })
+  lastOverviewAt.value = Date.now()
 }
 
-async function loadWeekly() {
+async function loadWeekly(force = false) {
+  if (!force && Date.now() - lastWeeklyAt.value < FETCH_TTL_MS) return
   await executeWeekly({ dedupe: 'cancel' })
+  lastWeeklyAt.value = Date.now()
 }
 
 function exportCsv(type: 'history' | 'funnel') {
@@ -270,18 +278,18 @@ function isAnomalyDay(row: { generate_start: number, generate_error: number }) {
 
 async function applyFilters() {
   page.value = 1
-  await loadOverview()
+  await loadOverview(true)
 }
 
 async function goPage(next: number) {
   if (!data.value) return
   if (next < 1 || next > data.value.pagination.totalPages) return
   page.value = next
-  await loadOverview()
+  await loadOverview(true)
 }
 
 onMounted(async () => {
-  await Promise.all([loadOverview(), loadWeekly()])
+  await Promise.all([loadOverview(true), loadWeekly(true)])
 })
 </script>
 
@@ -296,7 +304,7 @@ onMounted(async () => {
             <p class="mt-[4px] text-[13px] text-zinc-600">统一查看生成质量、转化漏斗与风险分布</p>
           </div>
           <div class="flex flex-wrap items-center gap-[8px]">
-            <UiButton variant="outline" @click="loadOverview">
+            <UiButton variant="outline" @click="loadOverview(true)">
               <RefreshCw class="size-[14px]" :class="loading ? 'animate-spin' : ''" />刷新数据
             </UiButton>
             <UiButton variant="outline" @click="exportCsv('history')">
@@ -338,8 +346,8 @@ onMounted(async () => {
             <UiSelectItem value="guest">游客</UiSelectItem>
           </UiSelect>
           <UiInput v-model="userId" placeholder="用户 ID 精确筛选" />
-          <UiInput v-model="dateFrom" type="date" />
-          <UiInput v-model="dateTo" type="date" />
+          <UiDatePicker v-model="dateFrom" placeholder="开始日期" />
+          <UiDatePicker v-model="dateTo" placeholder="结束日期" />
           <UiSelect v-model="historySort" placeholder="排序方式">
             <UiSelectItem value="desc">时间倒序</UiSelectItem>
             <UiSelectItem value="asc">时间正序</UiSelectItem>

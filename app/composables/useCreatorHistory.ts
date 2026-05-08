@@ -3,6 +3,8 @@ import type { HistoryItem } from '~/types/creator'
 const STORAGE_KEY = 'ai_creator_history_v1'
 const MAX_HISTORY = 20
 const syncInflight = new Map<string, Promise<void>>()
+const syncLastAt = new Map<string, number>()
+const SYNC_TTL_MS = 20_000
 
 function dedupeKey(item: HistoryItem) {
   const minuteBucket = item.createdAt.slice(0, 16)
@@ -44,10 +46,18 @@ export function useCreatorHistory() {
     }
   }
 
-  async function syncFromCloud(deviceId?: string, headers?: Record<string, string>) {
+  async function syncFromCloud(
+    deviceId?: string,
+    headers?: Record<string, string>,
+    options?: { force?: boolean },
+  ) {
     if (!import.meta.client || (!deviceId && !headers)) return
 
     const key = headers ? 'auth' : `device:${deviceId}`
+    if (!options?.force) {
+      const last = syncLastAt.get(key) || 0
+      if (Date.now() - last < SYNC_TTL_MS) return
+    }
     if (syncInflight.has(key)) {
       await syncInflight.get(key)
       return
@@ -66,6 +76,7 @@ export function useCreatorHistory() {
           history.value = cloudFirst
           persist()
         }
+        syncLastAt.set(key, Date.now())
       } catch {
         // ignore
       }

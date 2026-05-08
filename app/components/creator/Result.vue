@@ -66,12 +66,26 @@ const detectedRiskTerms = computed(() => {
   })
   return terms
 })
+const platformRiskTips = computed(() => {
+  if (props.platform === 'xiaohongshu') {
+    return [
+      '避免“绝对功效/保证结果”式表述，优先使用“个人体验”口吻。',
+      '减少医疗化、功效夸大表达，建议补充使用场景与主观感受。',
+    ]
+  }
+  return [
+    '避免“秒见效/稳赚/包会”等强承诺词，降低诱导性和夸张程度。',
+    '口播建议用“我自己的体验”替代“你一定会”，减少绝对化引导。',
+  ]
+})
 
 const isDrawerOpen = ref(false)
 const customPrompt = ref('')
 const showCopyFlash = ref(false)
 const pendingOptimize = ref<{ beforeLength: number, label: string } | null>(null)
 const optimizeReport = ref('')
+const rewriteScope = ref<'full' | 'intro' | 'middle' | 'ending'>('full')
+const preserveParagraphs = ref(true)
 const qualityDims = [
   { key: 'hookStrength', label: '钩子力', icon: '🎯' },
   { key: 'platformFit', label: '平台适配', icon: '📱' },
@@ -129,7 +143,7 @@ function submitOptimization() {
   isDrawerOpen.value = false
   pendingOptimize.value = { beforeLength: props.content.length, label: '深度优化' }
   optimizeReport.value = ''
-  emit('optimize', customPrompt.value)
+  emit('optimize', buildScopedPrompt(customPrompt.value))
 }
 
 // 质量维度分数获取器
@@ -149,7 +163,7 @@ function runQuickOptimize(prompt: string) {
   if (!prompt.trim()) return
   pendingOptimize.value = { beforeLength: props.content.length, label: '一键优化' }
   optimizeReport.value = ''
-  emit('optimize', prompt)
+  emit('optimize', buildScopedPrompt(prompt))
   triggerHaptic()
 }
 
@@ -165,8 +179,25 @@ function normalizeSuggestionPrompt(suggestion: string) {
 
 function runSafetyRewrite() {
   const risky = detectedRiskTerms.value.length ? `命中词：${detectedRiskTerms.value.join('、')}。` : ''
-  const prompt = `请在不改变核心主题的前提下，对当前文案进行安全改写。${risky}改写要求：避免绝对化承诺、避免夸大和诱导性表达、保留口语化和可读性，并输出可直接发布版本。`
+  const platformRule = props.platform === 'xiaohongshu'
+    ? '平台倾向：小红书图文。改写时强调真实体验、场景细节与主观感受，避免医疗化与功效保证。'
+    : '平台倾向：抖音口播。改写时保留节奏感，但避免夸张承诺、收益承诺与强诱导互动。'
+  const prompt = `请在不改变核心主题的前提下，对当前文案进行安全改写。${risky}${platformRule} 改写要求：避免绝对化承诺、避免夸大和诱导性表达、保留口语化和可读性，并输出可直接发布版本。`
   runQuickOptimize(prompt)
+}
+
+function buildScopedPrompt(basePrompt: string) {
+  const scopeText = rewriteScope.value === 'intro'
+    ? '只改写开头（前20%内容）'
+    : rewriteScope.value === 'middle'
+      ? '只改写中段（中间60%内容）'
+      : rewriteScope.value === 'ending'
+        ? '只改写结尾（后20%内容）'
+        : '可改写全文'
+  const preserveText = preserveParagraphs.value
+    ? '未指定改写范围的段落请尽量保持原文不变。'
+    : '可以根据需要重排段落结构。'
+  return `${basePrompt}\n\n【改写范围控制】${scopeText}。${preserveText}`
 }
 
 // 自动滚动到底部
@@ -268,6 +299,20 @@ watch(() => props.status, (next) => {
           <p v-if="detectedRiskTerms.length" class="mt-[4px] text-[12px] text-amber-700">
             命中词：{{ detectedRiskTerms.join('、') }}
           </p>
+          <div class="mt-[6px] rounded-[10px] border border-amber-200/70 bg-white/70 p-[8px]">
+            <p class="text-[11px] font-medium text-amber-800">
+              {{ platform === 'xiaohongshu' ? '小红书风控提示' : '抖音风控提示' }}
+            </p>
+            <ul class="mt-[4px] flex flex-col gap-[2px]">
+              <li
+                v-for="tip in platformRiskTips"
+                :key="tip"
+                class="text-[11px] leading-[16px] text-amber-700"
+              >
+                • {{ tip }}
+              </li>
+            </ul>
+          </div>
           <button
             type="button"
             class="mt-[8px] rounded-full border border-amber-300 bg-white px-[10px] py-[5px] text-[12px] text-amber-800 transition-colors hover:bg-amber-100"
@@ -598,6 +643,20 @@ watch(() => props.status, (next) => {
                   </button>
                 </div>
 
+                <div class="mb-[12px]">
+                  <p class="mb-[6px] text-[12px] font-medium text-zinc-500">改写范围</p>
+                  <div class="grid grid-cols-4 gap-[6px]">
+                    <button type="button" class="rounded-[10px] border px-[8px] py-[6px] text-[12px]" :class="rewriteScope === 'full' ? 'border-zinc-900 bg-zinc-900 text-white' : 'border-zinc-200 bg-white text-zinc-600'" @click="rewriteScope = 'full'">全文</button>
+                    <button type="button" class="rounded-[10px] border px-[8px] py-[6px] text-[12px]" :class="rewriteScope === 'intro' ? 'border-zinc-900 bg-zinc-900 text-white' : 'border-zinc-200 bg-white text-zinc-600'" @click="rewriteScope = 'intro'">开头</button>
+                    <button type="button" class="rounded-[10px] border px-[8px] py-[6px] text-[12px]" :class="rewriteScope === 'middle' ? 'border-zinc-900 bg-zinc-900 text-white' : 'border-zinc-200 bg-white text-zinc-600'" @click="rewriteScope = 'middle'">中段</button>
+                    <button type="button" class="rounded-[10px] border px-[8px] py-[6px] text-[12px]" :class="rewriteScope === 'ending' ? 'border-zinc-900 bg-zinc-900 text-white' : 'border-zinc-200 bg-white text-zinc-600'" @click="rewriteScope = 'ending'">结尾</button>
+                  </div>
+                  <label class="mt-[8px] inline-flex items-center gap-[6px] text-[12px] text-zinc-600">
+                    <input v-model="preserveParagraphs" type="checkbox" class="size-[14px]" />
+                    保留未改写段落
+                  </label>
+                </div>
+
                 <!-- 自定义输入 -->
                 <textarea
                   v-model="customPrompt"
@@ -608,7 +667,7 @@ watch(() => props.status, (next) => {
                 <UiButton
                   size="lg"
                   class="mt-[16px] w-full"
-                  :disabled="!customPrompt.value.trim()"
+                  :disabled="!customPrompt.trim()"
                   @click="submitOptimization(); triggerHaptic()"
                 >
                   <Sparkles class="mr-[8px] size-[16px]" />
