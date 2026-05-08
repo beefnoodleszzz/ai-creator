@@ -12,6 +12,10 @@ const generateSchema = z.object({
   industry: z.string().optional(),
   scene: z.string().optional(),
   customPrompt: z.string().optional(),
+  keywords: z.string().max(300).optional(),
+  bannedWords: z.string().max(300).optional(),
+  brandVoice: z.string().max(300).optional(),
+  audience: z.string().max(300).optional(),
 }).refine(data => data.topic, {
   message: '请选择一个场景',
   path: ['topic'],
@@ -44,6 +48,10 @@ export default defineEventHandler(async (event) => {
     parsed.data.topic ?? '',
     parsed.data.customPrompt ?? '',
     parsed.data.scene ?? '',
+    parsed.data.keywords ?? '',
+    parsed.data.bannedWords ?? '',
+    parsed.data.brandVoice ?? '',
+    parsed.data.audience ?? '',
   ].join('\n')
 
   const safety = assessSafety(moderationInput)
@@ -77,6 +85,10 @@ export default defineEventHandler(async (event) => {
     industry: parsed.data.industry,
     scene: parsed.data.scene,
     customPrompt: parsed.data.customPrompt,
+    keywords: parsed.data.keywords,
+    bannedWords: parsed.data.bannedWords,
+    brandVoice: parsed.data.brandVoice,
+    audience: parsed.data.audience,
   }
 
   const systemPrompt = buildSystemPrompt(payload)

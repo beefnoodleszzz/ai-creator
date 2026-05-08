@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, toRef } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import {
   DrawerHandle,
   DrawerContent,
@@ -20,6 +20,8 @@ import UiCheckbox from '~/components/ui/checkbox/index.vue'
 const props = defineProps<{
   platform: CreatorPlatform
   content: string
+  alternateContent?: string
+  alternateGenerating?: boolean
   status: CreatorStatus
   safetyLevel?: 'safe' | 'warn' | 'block'
   safetyTerm?: string
@@ -41,15 +43,21 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   copy: []
-  regenerate: []
+  regenerate: [strategy?: 'stable' | 'viral']
   startOver: []
   back: []
-  optimize: [prompt: string]
+  optimize: [payload: { prompt: string, strategy: 'stable' | 'viral' }]
   copySection: [section: string, text: string]
 }>()
 
 const { renderMarkdown } = useMarkdown()
-const { structured, hasStructure, displayBody } = useStructuredContent(toRef(props, 'content'))
+const activeVersion = ref<'stable' | 'viral'>('stable')
+const activeRawContent = computed(() => (
+  activeVersion.value === 'viral' && props.alternateContent?.trim()
+    ? props.alternateContent
+    : props.content
+))
+const { structured, hasStructure, displayBody } = useStructuredContent(activeRawContent)
 
 const renderedContent = computed(() => renderMarkdown(displayBody.value))
 const isLoading = computed(() => props.status === 'generating')
@@ -136,6 +144,53 @@ const publishPackText = computed(() => {
   return lines.join('\n\n').trim()
 })
 
+function versionSignals(text: string) {
+  const clean = text || ''
+  const hookWords = ['别', '真相', '居然', '竟然', '劝你', '后悔', '踩雷', '救命']
+  const ctaWords = ['你们', '评论区', '会不会', '有没有', '你会', '说说', '怎么看']
+  const exclamations = (clean.match(/[!！]/g) || []).length
+  const hookHits = hookWords.reduce((n, w) => n + (clean.includes(w) ? 1 : 0), 0)
+  const ctaHits = ctaWords.reduce((n, w) => n + (clean.includes(w) ? 1 : 0), 0)
+  return { exclamations, hookHits, ctaHits, len: clean.length }
+}
+
+const versionCompareSummary = computed(() => {
+  if (!props.content?.trim() || !props.alternateContent?.trim()) return ''
+  const stable = versionSignals(props.content)
+  const viral = versionSignals(props.alternateContent)
+  const parts: string[] = []
+  if (viral.hookHits > stable.hookHits) parts.push('爆点版钩子更强')
+  else if (viral.hookHits < stable.hookHits) parts.push('稳妥版钩子更克制')
+  if (viral.exclamations > stable.exclamations) parts.push('爆点版节奏更激进')
+  if (viral.ctaHits > stable.ctaHits) parts.push('爆点版互动引导更明显')
+  if (!parts.length) parts.push('两版风格接近，优先按发布场景选择')
+  return parts.join(' · ')
+})
+
+const versionGuidance = computed(() => {
+  if (!props.content?.trim() || !props.alternateContent?.trim()) {
+    return {
+      stableTag: '日常稳发',
+      viralTag: '冲流量测试',
+      recommended: '',
+    }
+  }
+  const stable = versionSignals(props.content)
+  const viral = versionSignals(props.alternateContent)
+  const viralLead = (viral.hookHits - stable.hookHits) + (viral.exclamations - stable.exclamations)
+  const stableLead = (stable.len > 0 ? 1 : 0) + (stable.ctaHits >= viral.ctaHits ? 1 : 0)
+  const recommended = viralLead >= 2
+    ? '推荐先发：爆点版（适合冲首波流量）'
+    : stableLead >= 2
+      ? '推荐先发：稳妥版（适合稳定更新与低风险发布）'
+      : '推荐策略：先发稳妥版，再用爆点版做AB测试'
+  return {
+    stableTag: '日常稳发',
+    viralTag: '冲流量测试',
+    recommended,
+  }
+})
+
 function applyPreset(preset: typeof rewritePresets[0]) {
   customPrompt.value = preset.prompt
 }
@@ -143,9 +198,12 @@ function applyPreset(preset: typeof rewritePresets[0]) {
 function submitOptimization() {
   if (!customPrompt.value.trim()) return
   isDrawerOpen.value = false
-  pendingOptimize.value = { beforeLength: props.content.length, label: '深度优化' }
+  pendingOptimize.value = { beforeLength: activeRawContent.value.length, label: '深度优化' }
   optimizeReport.value = ''
-  emit('optimize', buildScopedPrompt(customPrompt.value))
+  emit('optimize', {
+    prompt: buildScopedPrompt(customPrompt.value),
+    strategy: activeVersion.value,
+  })
 }
 
 // 质量维度分数获取器
@@ -163,9 +221,12 @@ const dimOptimizePrompts: Record<string, string> = {
 
 function runQuickOptimize(prompt: string) {
   if (!prompt.trim()) return
-  pendingOptimize.value = { beforeLength: props.content.length, label: '一键优化' }
+  pendingOptimize.value = { beforeLength: activeRawContent.value.length, label: '一键优化' }
   optimizeReport.value = ''
-  emit('optimize', buildScopedPrompt(prompt))
+  emit('optimize', {
+    prompt: buildScopedPrompt(prompt),
+    strategy: activeVersion.value,
+  })
   triggerHaptic()
 }
 
@@ -252,6 +313,10 @@ watch(() => props.status, (next) => {
   optimizeReport.value = `${pendingOptimize.value.label}已完成（${deltaLabel}）`
   pendingOptimize.value = null
 })
+
+watch(() => props.content, () => {
+  activeVersion.value = 'stable'
+})
 </script>
 
 <template>
@@ -288,6 +353,40 @@ watch(() => props.status, (next) => {
           生成中
         </span>
       </div>
+
+      <div
+        v-if="content"
+        class="mb-[14px] inline-flex items-center gap-[6px] rounded-[12px] border border-zinc-200 bg-zinc-50 p-[4px]"
+      >
+        <button
+          type="button"
+          class="rounded-[8px] px-[10px] py-[5px] text-[12px] transition-colors"
+          :class="activeVersion === 'stable' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500'"
+          @click="activeVersion = 'stable'"
+        >
+          稳妥版
+        </button>
+        <span class="rounded-full bg-white px-[7px] py-[2px] text-[10px] text-zinc-500">{{ versionGuidance.stableTag }}</span>
+        <button
+          type="button"
+          class="rounded-[8px] px-[10px] py-[5px] text-[12px] transition-colors"
+          :class="activeVersion === 'viral' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500'"
+          :disabled="!alternateContent"
+          @click="alternateContent && (activeVersion = 'viral')"
+        >
+          爆点版
+        </button>
+        <span class="rounded-full bg-white px-[7px] py-[2px] text-[10px] text-zinc-500">{{ versionGuidance.viralTag }}</span>
+        <span v-if="alternateGenerating" class="text-[11px] text-zinc-400">
+          爆点版生成中...
+        </span>
+      </div>
+      <p v-if="versionCompareSummary" class="mb-[12px] text-[12px] text-zinc-500">
+        版本差异：{{ versionCompareSummary }}
+      </p>
+      <p v-if="versionGuidance.recommended" class="mb-[12px] text-[12px] text-zinc-600">
+        {{ versionGuidance.recommended }}
+      </p>
 
       <!-- 内容区域 - 结构化成品包 -->
       <template v-if="content">
@@ -692,7 +791,7 @@ watch(() => props.status, (next) => {
           variant="outline"
           size="lg"
           class="flex-1 animate-[fadeInUp_0.4s_ease-out_0.2s_both]"
-          @click="emit('regenerate'); triggerHaptic()"
+          @click="emit('regenerate', activeVersion); triggerHaptic()"
         >
           <RefreshCcw class="mr-[8px] size-[16px]" />
           再换一篇

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
-import type { CreatorPlatform, CreatorTone, CreatorGoal, CreatorStep, Industry, Scene, CreatorStatus, HistoryItem } from '~/types/creator'
-import { industries, tones, goals, promptTemplates } from '~/types/creator'
+import type { CreatorPlatform, CreatorTone, CreatorGoal, CreatorStep, Industry, Scene, CreatorStatus, HistoryItem, CreatorConstraints } from '~/types/creator'
+import { industries, tones, goals, promptTemplates, defaultCreatorConstraints } from '~/types/creator'
 import { parseStructuredContent } from '~/composables/useStructuredContent'
 
 const router = useRouter()
@@ -11,8 +11,11 @@ const selectedIndustry = ref<Industry>()
 const selectedScene = ref<Scene>()
 const tone = ref<CreatorTone>('viral')
 const goal = ref<CreatorGoal>('growth')
+const constraints = ref<CreatorConstraints>(defaultCreatorConstraints())
 const status = ref<CreatorStatus>('idle')
 const content = ref('')
+const altContent = ref('')
+const altGenerating = ref(false)
 const isScrolled = ref(false)
 const activeController = ref<AbortController | null>(null)
 const aiQuality = ref<{ overall: number, hookStrength: number, platformFit: number, authenticity: number, engagement: number, suggestions: string[] } | null>(null)
@@ -39,7 +42,7 @@ function selectScene(industry: Industry, scene: Scene) {
   step.value = 'tone'
 }
 
-async function generate(customPrompt?: string) {
+async function generate(customPrompt?: string, strategy: 'stable' | 'viral' = 'stable') {
   if (!selectedScene.value) return
 
   track('generate_start', { platform: platform.value, tone: tone.value, customPrompt: Boolean(customPrompt) })
@@ -50,21 +53,35 @@ async function generate(customPrompt?: string) {
   step.value = 'result'
   status.value = 'generating'
   content.value = ''
+  altContent.value = ''
+  altGenerating.value = false
   safetyTerm.value = ''
 
   try {
+    const basePayload = {
+      platform: platform.value,
+      tone: tone.value,
+      topic: selectedScene.value.topic,
+      industry: selectedIndustry.value?.id,
+      scene: selectedScene.value.name,
+      goal: goal.value,
+      keywords: constraints.value.keywords,
+      bannedWords: constraints.value.bannedWords,
+      brandVoice: constraints.value.brandVoice,
+      audience: constraints.value.audience,
+    }
+
+    const strategyPrompt = strategy === 'viral'
+      ? '请输出“爆点版”策略：强化冲突感、反差感与记忆点，但保持真实，不夸张承诺。'
+      : '请输出“稳妥版”策略：强调稳定可发、表达克制、信息清晰。'
+    const mergedPrompt = customPrompt?.trim()
+      ? `${customPrompt.trim()}\n\n【版本策略】${strategyPrompt}`
+      : strategyPrompt
+
     const response = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        platform: platform.value,
-        tone: tone.value,
-        topic: selectedScene.value.topic,
-        industry: selectedIndustry.value?.id,
-        scene: selectedScene.value.name,
-        goal: goal.value,
-        customPrompt,
-      }),
+      body: JSON.stringify({ ...basePayload, customPrompt: mergedPrompt }),
       signal: controller.signal,
     })
 
@@ -98,6 +115,16 @@ async function generate(customPrompt?: string) {
 
       const text = decoder.decode(value, { stream: true })
       content.value += text
+    }
+
+    if (!customPrompt?.trim() && strategy === 'stable') {
+      altGenerating.value = true
+      requestAlternateVersion({
+        ...basePayload,
+        customPrompt: '请基于同一主题再给一个“爆点版”，强调冲突感与记忆点，但保持真实、不夸张承诺。输出格式必须与系统要求完全一致。',
+      }).finally(() => {
+        altGenerating.value = false
+      })
     }
 
     status.value = 'finished'
@@ -171,11 +198,47 @@ async function generate(customPrompt?: string) {
   }
 }
 
+function handleResultRegenerate(strategy?: 'stable' | 'viral') {
+  generate(undefined, strategy || 'stable')
+}
+
+function handleResultOptimize(payload: { prompt: string, strategy: 'stable' | 'viral' }) {
+  generate(payload.prompt, payload.strategy)
+}
+
+async function requestAlternateVersion(payload: Record<string, unknown>) {
+  try {
+    const response = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    if (!response.ok) return
+
+    const reader = response.body?.getReader()
+    const decoder = new TextDecoder()
+    if (!reader) {
+      altContent.value = await response.text()
+      return
+    }
+    let buffer = ''
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+    }
+    altContent.value = buffer.trim()
+  } catch {
+    altContent.value = ''
+  }
+}
+
 function goBack() {
   if (step.value === 'result') {
     step.value = 'tone'
     status.value = 'idle'
     content.value = ''
+    altContent.value = ''
   } else if (step.value === 'tone') {
     step.value = 'industry'
   } else if (step.value === 'industry') {
@@ -192,6 +255,7 @@ function startOver() {
   selectedScene.value = undefined
   status.value = 'idle'
   content.value = ''
+  altContent.value = ''
 }
 
 function applyRecommendedCombo() {
@@ -210,6 +274,10 @@ function handleTogglePreferenceLearning(next: boolean) {
 function handleResetPreferenceLearning() {
   resetLearnedPreferences()
   toast.success('已重置偏好学习记录')
+}
+
+function handleUpdateConstraints(next: CreatorConstraints) {
+  constraints.value = next
 }
 
 async function copyContent() {
@@ -324,9 +392,11 @@ onBeforeUnmount(() => {
         :templates="promptTemplates"
         :selected-tone="tone"
         :selected-goal="goal"
+        :constraints="constraints"
         :is-loading="isLoading"
         @update:tone="tone = $event"
         @update:goal="goal = $event"
+        @update:constraints="handleUpdateConstraints"
         @update:preference-learning-enabled="handleTogglePreferenceLearning"
         @reset:preferences="handleResetPreferenceLearning"
         @apply:recommended="applyRecommendedCombo"
@@ -339,6 +409,8 @@ onBeforeUnmount(() => {
         v-else-if="step === 'result'"
         :platform="platform"
         :content="content"
+        :alternate-content="altContent"
+        :alternate-generating="altGenerating"
         :status="status"
         :safety-level="safetyLevel"
         :safety-term="safetyTerm"
@@ -348,8 +420,8 @@ onBeforeUnmount(() => {
         :ai-quality="aiQuality"
         @copy="copyContent"
         @copy-section="handleCopySection"
-        @regenerate="generate()"
-        @optimize="generate"
+        @regenerate="handleResultRegenerate"
+        @optimize="handleResultOptimize"
         @start-over="startOver"
         @back="goBack"
       />

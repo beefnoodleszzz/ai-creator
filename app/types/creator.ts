@@ -18,6 +18,13 @@ export interface Scene {
   topic: string
 }
 
+export interface CreatorConstraints {
+  keywords: string
+  bannedWords: string
+  brandVoice: string
+  audience: string
+}
+
 export interface CreatorState {
   step: CreatorStep
   platform: CreatorPlatform
@@ -186,3 +193,10 @@ export const goals: Array<{ value: CreatorGoal, label: string, desc: string, emo
   { value: 'conversion', label: '转化', desc: '突出行动引导与决策触发', emoji: '🎯' },
   { value: 'branding', label: '种草', desc: '建立信任与品牌感知', emoji: '🌱' },
 ]
+
+export const defaultCreatorConstraints = (): CreatorConstraints => ({
+  keywords: '',
+  bannedWords: '',
+  brandVoice: '',
+  audience: '',
+})

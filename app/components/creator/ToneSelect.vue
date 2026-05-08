@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import type { CreatorPlatform, CreatorTone, CreatorGoal, Industry, Scene } from '~/types/creator'
+import type { CreatorPlatform, CreatorTone, CreatorGoal, Industry, Scene, CreatorConstraints } from '~/types/creator'
 import { cn } from '~/lib/utils'
-import { Check, LoaderCircle, Zap } from 'lucide-vue-next'
+import { Check, ChevronDown, LoaderCircle, Zap } from 'lucide-vue-next'
 import type { PromptTemplate } from '~/types/creator'
 import UiButton from '~/components/ui/button/index.vue'
 import UiBadge from '~/components/ui/badge/index.vue'
+import UiInput from '~/components/ui/input/index.vue'
 
 const props = defineProps<{
   platform: CreatorPlatform
@@ -12,6 +13,7 @@ const props = defineProps<{
   scene?: Scene
   tones: Array<{ value: CreatorTone, label: string, desc: string, emoji: string }>
   templates: PromptTemplate[]
+  constraints: CreatorConstraints
   selectedTone: CreatorTone
   goals: Array<{ value: CreatorGoal, label: string, desc: string, emoji: string }>
   selectedGoal: CreatorGoal
@@ -23,12 +25,22 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:tone': [value: CreatorTone]
   'update:goal': [value: CreatorGoal]
+  'update:constraints': [value: CreatorConstraints]
   'update:preferenceLearningEnabled': [value: boolean]
   'reset:preferences': []
   'apply:recommended': []
   generate: [customPrompt?: string]
   back: []
 }>()
+
+const showAdvanced = ref(false)
+
+function patchConstraint(key: keyof CreatorConstraints, value: string) {
+  emit('update:constraints', {
+    ...props.constraints,
+    [key]: value,
+  })
+}
 
 // 触觉反馈
 function triggerHaptic() {
@@ -189,6 +201,56 @@ function triggerHaptic() {
       >
         {{ template.name }}
       </button>
+    </div>
+
+    <div class="mb-[18px] animate-[fadeInUp_0.4s_ease-out_0.35s_both]">
+      <button
+        type="button"
+        class="native-press flex w-full items-center justify-between rounded-[14px] border border-zinc-200/70 bg-white px-[12px] py-[10px] text-left"
+        @click="showAdvanced = !showAdvanced"
+      >
+        <div>
+          <p class="text-[13px] font-medium text-zinc-800">高级创作约束</p>
+          <p class="mt-[2px] text-[12px] text-zinc-500">关键词 / 禁用词 / 品牌口吻 / 目标受众</p>
+        </div>
+        <ChevronDown :class="cn('size-[16px] text-zinc-400 transition-transform', showAdvanced ? 'rotate-180' : '')" />
+      </button>
+      <div v-if="showAdvanced" class="mt-[10px] rounded-[14px] border border-zinc-200/70 bg-white p-[12px]">
+        <div class="grid grid-cols-1 gap-[10px]">
+          <div>
+            <p class="mb-[6px] text-[12px] text-zinc-500">关键词（逗号分隔）</p>
+            <UiInput
+              :model-value="constraints.keywords"
+              placeholder="如：真实测评,平价,新手友好"
+              @update:model-value="patchConstraint('keywords', String($event || ''))"
+            />
+          </div>
+          <div>
+            <p class="mb-[6px] text-[12px] text-zinc-500">禁用词（逗号分隔）</p>
+            <UiInput
+              :model-value="constraints.bannedWords"
+              placeholder="如：绝对有效,保证瘦,闭眼入"
+              @update:model-value="patchConstraint('bannedWords', String($event || ''))"
+            />
+          </div>
+          <div>
+            <p class="mb-[6px] text-[12px] text-zinc-500">品牌口吻</p>
+            <UiInput
+              :model-value="constraints.brandVoice"
+              placeholder="如：专业但亲切，像资深顾问分享"
+              @update:model-value="patchConstraint('brandVoice', String($event || ''))"
+            />
+          </div>
+          <div>
+            <p class="mb-[6px] text-[12px] text-zinc-500">目标受众</p>
+            <UiInput
+              :model-value="constraints.audience"
+              placeholder="如：23-30岁一线城市上班族女生"
+              @update:model-value="patchConstraint('audience', String($event || ''))"
+            />
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- 生成按钮 -->
