@@ -191,6 +191,30 @@ const versionGuidance = computed(() => {
   }
 })
 
+const abTestPlanText = computed(() => {
+  if (!props.content?.trim() || !props.alternateContent?.trim()) return ''
+  const windows = publishWindows.value
+  const slotA = windows[0] || '今日 20:00-21:00'
+  const slotB = windows[1] || windows[0] || '次日 20:00-21:00'
+  return [
+    '【A/B发布测试计划】',
+    '',
+    `A版（稳妥版）发布时间：${slotA}`,
+    `B版（爆点版）发布时间：${slotB}`,
+    '',
+    '【观察周期】发布后 2-4 小时',
+    '【核心指标】',
+    '1. 前30分钟互动率（点赞+评论+收藏 / 曝光）',
+    '2. 收藏率（收藏 / 曝光）',
+    '3. 评论深度（有效评论数）',
+    '',
+    '【判定规则】',
+    '- 若 B 版互动率高于 A 版 >= 20%，后续优先爆点策略',
+    '- 若 A 版收藏率更高，后续优先稳妥策略',
+    '- 若差异不明显（<10%），按账号调性选择稳妥版持续发布',
+  ].join('\n')
+})
+
 function applyPreset(preset: typeof rewritePresets[0]) {
   customPrompt.value = preset.prompt
 }
@@ -290,6 +314,13 @@ async function copyAllStructured() {
   }
 }
 
+async function copyAbTestPlan() {
+  if (!abTestPlanText.value) return
+  await navigator.clipboard.writeText(abTestPlanText.value)
+  emit('copySection', 'ab_test_plan', abTestPlanText.value)
+  triggerHaptic()
+}
+
 // 复制闪光效果
 async function handleCopy() {
   emit('copy')
@@ -387,6 +418,17 @@ watch(() => props.content, () => {
       <p v-if="versionGuidance.recommended" class="mb-[12px] text-[12px] text-zinc-600">
         {{ versionGuidance.recommended }}
       </p>
+      <div v-if="abTestPlanText" class="mb-[14px]">
+        <UiButton
+          variant="outline"
+          size="sm"
+          class="h-[34px] rounded-[10px] px-[10px] text-[12px]"
+          @click="copyAbTestPlan"
+        >
+          <Copy class="mr-[6px] size-[13px]" />
+          复制A/B发布计划
+        </UiButton>
+      </div>
 
       <!-- 内容区域 - 结构化成品包 -->
       <template v-if="content">

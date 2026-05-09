@@ -3,6 +3,7 @@ import type { CreatorPlatform } from '~/types/creator'
 import { ChevronDown, ChevronRight } from 'lucide-vue-next'
 import { cn } from '~/lib/utils'
 import UiCard from '~/components/ui/card/index.vue'
+import UiButton from '~/components/ui/button/index.vue'
 
 const emit = defineEmits<{
   select: [platform: CreatorPlatform]
@@ -58,6 +59,26 @@ function togglePreview(id: CreatorPlatform) {
 
       <!-- 平台选择 - 交错入场动画 -->
       <div class="flex flex-col gap-[14px]">
+        <UiCard class="border-emerald-200/80 bg-emerald-50/70 p-[16px]">
+          <div class="flex items-center justify-between gap-[12px]">
+            <div>
+              <p class="text-[15px] font-medium leading-[22px] text-emerald-900 tracking-tight">
+                比熊每日科普专页
+              </p>
+              <p class="mt-[4px] text-[12px] leading-[18px] text-emerald-700/90">
+                小红书专用，专业养宠科普，一天一篇
+              </p>
+            </div>
+            <UiButton
+              size="sm"
+              class="bg-emerald-600 hover:bg-emerald-700"
+              @click="$router.push('/xhs-bichon')"
+            >
+              去使用
+            </UiButton>
+          </div>
+        </UiCard>
+
         <UiCard
           v-for="(p, index) in platforms"
           :key="p.id"

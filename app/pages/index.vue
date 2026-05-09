@@ -296,6 +296,7 @@ function handleCopySection(section: string, text: string) {
     publish_time: '发布时间建议',
     short_version: '摘要版文案',
     publish_pack: '发布成品包',
+    ab_test_plan: 'A/B发布计划',
   }
   toast.success(`已复制${labels[section] || section}`)
 }
